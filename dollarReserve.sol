@@ -170,11 +170,18 @@ contract DollarReserve is Ownable {
             if (uniVars.amountFromReserves < uniVars.dollarsToUni) {
                 // if the amount from reserves > dollarsToUni, we have fully paid for the yCRV tokens
                 // thus this number would be 0 so no need to mint
+                IDollars(dollarAddress).mintCash(address(this), uniVars.dollarsToUni.sub(uniVars.amountFromReserves));
                 IDollars(dollarAddress).transfer(uniswap_reserve_pair, uniVars.dollarsToUni.sub(uniVars.amountFromReserves));
             }
         } else {
             // transfer to uniswap
+            IDollars(dollarAddress).mintCash(address(this), uniVars.dollarsToUni);
             IDollars(dollarAddress).transfer(uniswap_reserve_pair, uniVars.dollarsToUni);
+        }
+
+        // mint unsold to mintAmount
+        if (uniVars.mintToReserves > 0) {
+            IDollars(dollarAddress).mintCash(uniswap_reserve_pair, uniVars.mintToReserves);
         }
 
         uint256 public_goods_perc = IRebaser(rebaser).public_goods_perc();
@@ -184,17 +191,21 @@ contract DollarReserve is Ownable {
         if (isToken0) {
             if (public_goods != address(0) && public_goods_perc > 0) {
               uint256 amount_to_public_goods = amount1.mul(public_goods_perc).div(10 ** 9);
+            //   SafeERC20.safeTransfer(IERC20(reserveToken), address(this), amount1.sub(amount_to_public_goods));
               SafeERC20.safeTransfer(IERC20(reserveToken), public_goods, amount_to_public_goods);
               emit TreasuryIncreased(amount1.sub(amount_to_public_goods), uniVars.dollarsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
             } else {
+            //   SafeERC20.safeTransfer(IERC20(reserveToken), address(this), amount1);
               emit TreasuryIncreased(amount1, uniVars.dollarsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
             }
         } else {
           if (public_goods != address(0) && public_goods_perc > 0) {
             uint256 amount_to_public_goods = amount0.mul(public_goods_perc).div(10 ** 9);
+            // SafeERC20.safeTransfer(IERC20(reserveToken), address(this), amount0.sub(amount_to_public_goods));
             SafeERC20.safeTransfer(IERC20(reserveToken), public_goods, amount_to_public_goods);
             emit TreasuryIncreased(amount0.sub(amount_to_public_goods), uniVars.dollarsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
           } else {
+            // SafeERC20.safeTransfer(IERC20(reserveToken), address(this), amount0);
             emit TreasuryIncreased(amount0, uniVars.dollarsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
           }
         }
@@ -259,7 +270,7 @@ contract DollarReserve is Ownable {
     // convert USD into reserve asset
     function buyReserveAndTransfer(uint256 mintAmount)
         external
-        // onlyRebaser
+        onlyRebaser
     {
         uint256 dollarCoinExchangeRate = getDollarCoinExchangeRate();
         uint256 targetRate = getTargetRate();
